@@ -103,6 +103,15 @@ export default class CustomAttachmentLocation extends Plugin {
         let path = new TemplateString(this.settings.attachmentFolderPath).interpolate({
             filename: mdFileName
         });
+
+        if (this.settings.toLowerCase) {
+            path = path.toLowerCase();
+        }
+
+        if (this.settings.replaceWhitespace) {
+            path = path.replace(/\s/g, '-');
+        }
+
         return path;
     }
 
@@ -113,14 +122,6 @@ export default class CustomAttachmentLocation extends Plugin {
             attachmentFolder = Path.join(mdFolderPath, this.getAttachmentFolderPath(mdFileName));
         else {
             attachmentFolder = this.getAttachmentFolderPath(mdFileName);
-        }
-
-        if (this.settings.toLowerCase) {
-            attachmentFolder = attachmentFolder.toLowerCase();
-        }
-
-        if (this.settings.replaceWhitespace) {
-            attachmentFolder = attachmentFolder.replace(/\s/g, '-');
         }
 
         return normalizePath(attachmentFolder);
