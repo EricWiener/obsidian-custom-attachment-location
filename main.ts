@@ -199,9 +199,9 @@ export default class CustomAttachmentLocation extends Plugin {
         let fullPath = this.getAttachmentFolderFullPath(mdFolderPath, mdFileName);
 
         this.updateAttachmentFolderConfig(path);
-
-        if (!await this.adapter.exists(fullPath))
-            await this.adapter.mkdir(fullPath);
+        if (!await this.adapter.exists(path)) {
+            await this.adapter.mkdir(path);
+        }
     }
 
     async handleRename(newFile: TFile, oldFilePath: string) {
