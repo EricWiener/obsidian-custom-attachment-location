@@ -133,6 +133,13 @@ export default class CustomAttachmentLocation extends Plugin {
             filename: mdFileName,
             date: datetime
         });
+        if (this.settings.toLowerCase) {
+            name = name.toLowerCase();
+        }
+
+        if (this.settings.replaceWhitespace) {
+            name = name.replace(/\s/g, '-');
+        }
         return name;
     }
 
@@ -348,7 +355,7 @@ class CustomAttachmentLocationSettingTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName('Replace whitespace with hyphen')
-            .setDesc('Automatically replace whitespace in attachment folder with hyphens.')
+            .setDesc('Automatically replace whitespace in attachment folder and file name with hyphens.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.replaceWhitespace)
                 .onChange(async (value: boolean) => {
@@ -358,8 +365,8 @@ class CustomAttachmentLocationSettingTab extends PluginSettingTab {
                 }));
 
         new Setting(containerEl)
-            .setName('All lowercase folder name')
-            .setDesc('Automatically set all characters in folder name to be lowercase.')
+            .setName('All lowercase names')
+            .setDesc('Automatically set all characters in folder name and pasted image name to be lowercase.')
             .addToggle(toggle => toggle
                 .setValue(this.plugin.settings.toLowerCase)
                 .onChange(async (value: boolean) => {
