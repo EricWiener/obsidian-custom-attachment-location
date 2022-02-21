@@ -146,8 +146,8 @@ export default class CustomAttachmentLocation extends Plugin {
         let path = this.getAttachmentFolderPath(mdFileName);
         let fullPath = this.getAttachmentFolderFullPath(mdFolderPath, mdFileName);
 
+        // this will also create directory
         this.updateAttachmentFolderConfig(path);
-        // this.app.vault.setConfig('attachmentFolderPath', `./assets/${filename}`);
 
         let clipBoardData = event.clipboardData;
         let clipBoardItems = clipBoardData.items;
@@ -169,10 +169,6 @@ export default class CustomAttachmentLocation extends Plugin {
                 item.type === 'image/png' ? extension = 'png' : item.type === 'image/jpeg' && (extension = 'jpeg');
 
                 event.preventDefault();
-
-                //if folder not exist, mkdir first.
-                if (!await this.adapter.exists(fullPath))
-                    await this.adapter.mkdir(fullPath);
 
                 let img = await blobToArrayBuffer(pasteImage);
 
@@ -198,10 +194,10 @@ export default class CustomAttachmentLocation extends Plugin {
         let path = this.getAttachmentFolderPath(mdFileName);
         let fullPath = this.getAttachmentFolderFullPath(mdFolderPath, mdFileName);
 
+        // this will handle creating the directory if it doesn't exist
+        // don't also try to manually create the directory or the app
+        // may throw an error if the directory already exists
         this.updateAttachmentFolderConfig(path);
-        if (!await this.adapter.exists(path)) {
-            await this.adapter.mkdir(path);
-        }
     }
 
     async handleRename(newFile: TFile, oldFilePath: string) {
