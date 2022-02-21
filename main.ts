@@ -9,6 +9,8 @@ interface CustomAttachmentLocationSettings {
     dateTimeFormat: string;
     autoRenameFolder: boolean;
     autoRenameFiles: boolean;
+    replaceWhitespace: boolean;
+    toLowerCase: boolean;
 }
 
 const DEFAULT_SETTINGS: CustomAttachmentLocationSettings = {
@@ -16,7 +18,9 @@ const DEFAULT_SETTINGS: CustomAttachmentLocationSettings = {
     pastedImageFileName: 'image-${date}',
     dateTimeFormat: 'YYYYMMDDHHmmssSSS',
     autoRenameFolder: true,
-    autoRenameFiles: false
+    autoRenameFiles: false,
+    replaceWhitespace: false,
+    toLowerCase: false,
 }
 
 let originalSettings = {
@@ -25,14 +29,14 @@ let originalSettings = {
 
 const blobToArrayBuffer = (blob: Blob) => {
     return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result)
-      reader.readAsArrayBuffer(blob)
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result)
+        reader.readAsArrayBuffer(blob)
     })
 }
 
 
-class TemplateString extends String{
+class TemplateString extends String {
     interpolate(params: Object) {
         const names = Object.keys(params);
         const vals = Object.values(params);
@@ -70,7 +74,7 @@ export default class CustomAttachmentLocation extends Plugin {
 
     async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-        if(this.settings.attachmentFolderPath.startsWith('./'))
+        if (this.settings.attachmentFolderPath.startsWith('./'))
             this.useRelativePath = true;
         else
             this.useRelativePath = false;
@@ -80,45 +84,49 @@ export default class CustomAttachmentLocation extends Plugin {
         await this.saveData(this.settings);
     }
 
-    backupConfigs(){
+    backupConfigs() {
         //@ts-ignore
         originalSettings.attachmentFolderPath = this.app.vault.getConfig('attachmentFolderPath');
     }
 
-    restoreConfigs(){
+    restoreConfigs() {
         //@ts-ignore
         this.app.vault.setConfig('attachmentFolderPath', originalSettings.attachmentFolderPath);
     }
 
-    updateAttachmentFolderConfig(path: string)
-    {
+    updateAttachmentFolderConfig(path: string) {
         //@ts-ignore
         this.app.vault.setConfig('attachmentFolderPath', path);
     }
 
-    getAttachmentFolderPath(mdFileName: string)
-    {
+    getAttachmentFolderPath(mdFileName: string) {
         let path = new TemplateString(this.settings.attachmentFolderPath).interpolate({
             filename: mdFileName
         });
         return path;
     }
 
-    getAttachmentFolderFullPath(mdFolderPath: string, mdFileName: string)
-    {
+    getAttachmentFolderFullPath(mdFolderPath: string, mdFileName: string) {
         let attachmentFolder = '';
 
-        if(this.useRelativePath)
+        if (this.useRelativePath)
             attachmentFolder = Path.join(mdFolderPath, this.getAttachmentFolderPath(mdFileName));
-        else
-        {
+        else {
             attachmentFolder = this.getAttachmentFolderPath(mdFileName);
         }
+
+        if (this.settings.toLowerCase) {
+            attachmentFolder = attachmentFolder.toLowerCase();
+        }
+
+        if (this.settings.replaceWhitespace) {
+            attachmentFolder = attachmentFolder.replace(/\s/g, '-');
+        }
+
         return normalizePath(attachmentFolder);
     }
 
-    getPastedImageFileName(mdFileName: string)
-    {
+    getPastedImageFileName(mdFileName: string) {
         let datetime = moment().format(this.settings.dateTimeFormat);
         let name = new TemplateString(this.settings.pastedImageFileName).interpolate({
             filename: mdFileName,
@@ -128,7 +136,7 @@ export default class CustomAttachmentLocation extends Plugin {
     }
 
 
-    async handlePaste(event: ClipboardEvent, editor: Editor, view: MarkdownView){
+    async handlePaste(event: ClipboardEvent, editor: Editor, view: MarkdownView) {
         console.log('Handle Paste');
 
         let mdFileName = view.file.basename;
@@ -142,18 +150,18 @@ export default class CustomAttachmentLocation extends Plugin {
 
         let clipBoardData = event.clipboardData;
         let clipBoardItems = clipBoardData.items;
-        if(!clipBoardData.getData('text/plain')){
-            for(let i in clipBoardItems){
-                if(!clipBoardItems.hasOwnProperty(i))
+        if (!clipBoardData.getData('text/plain')) {
+            for (let i in clipBoardItems) {
+                if (!clipBoardItems.hasOwnProperty(i))
                     continue;
                 let item = clipBoardItems[i];
-                if(item.kind !== 'file')
+                if (item.kind !== 'file')
                     continue;
-                if(!(item.type === 'image/png' || item.type === 'image/jpeg'))
+                if (!(item.type === 'image/png' || item.type === 'image/jpeg'))
                     continue;
 
                 let pasteImage = item.getAsFile();
-                if(!pasteImage)
+                if (!pasteImage)
                     continue;
 
                 let extension = '';
@@ -162,7 +170,7 @@ export default class CustomAttachmentLocation extends Plugin {
                 event.preventDefault();
 
                 //if folder not exist, mkdir first.
-                if(!await this.adapter.exists(fullPath))
+                if (!await this.adapter.exists(fullPath))
                     await this.adapter.mkdir(fullPath);
 
                 let img = await blobToArrayBuffer(pasteImage);
@@ -180,7 +188,7 @@ export default class CustomAttachmentLocation extends Plugin {
         }
     }
 
-    async handleDrop(event: DragEvent, editor: Editor, view: MarkdownView){
+    async handleDrop(event: DragEvent, editor: Editor, view: MarkdownView) {
         console.log('Handle Drop');
 
         let mdFileName = view.file.basename;
@@ -191,15 +199,15 @@ export default class CustomAttachmentLocation extends Plugin {
 
         this.updateAttachmentFolderConfig(path);
 
-        if(!await this.adapter.exists(fullPath))
+        if (!await this.adapter.exists(fullPath))
             await this.adapter.mkdir(fullPath);
     }
 
-    async handleRename(newFile: TFile, oldFilePath: string){
+    async handleRename(newFile: TFile, oldFilePath: string) {
         console.log('Handle Rename');
 
         //if autoRename is off or not a markdown file
-        if(!this.settings.autoRenameFolder || newFile.extension !== 'md')
+        if (!this.settings.autoRenameFolder || newFile.extension !== 'md')
             return;
 
         let newName = newFile.basename;
@@ -211,11 +219,10 @@ export default class CustomAttachmentLocation extends Plugin {
         let newAttachmentFolderPath: string = this.getAttachmentFolderFullPath(mdFolderPath, newName);
 
         //check if old attachment folder exists and is necessary to rename Folder
-        if(await this.adapter.exists(oldAttachmentFolderPath) && (oldAttachmentFolderPath !== newAttachmentFolderPath))
-        {
+        if (await this.adapter.exists(oldAttachmentFolderPath) && (oldAttachmentFolderPath !== newAttachmentFolderPath)) {
             let tfolder: TAbstractFile = this.app.vault.getAbstractFileByPath(oldAttachmentFolderPath);
 
-            if(tfolder == null)
+            if (tfolder == null)
                 return;
 
             await this.app.fileManager.renameFile(tfolder, newAttachmentFolderPath);
@@ -223,33 +230,30 @@ export default class CustomAttachmentLocation extends Plugin {
         }
 
         //if autoRenameFiles is off
-        if(!this.settings.autoRenameFiles)
+        if (!this.settings.autoRenameFiles)
             return;
 
         let embeds = this.app.metadataCache.getCache(newFile.path)?.embeds;
-        if(!embeds)
+        if (!embeds)
             return;
 
         let files: string[] = [];
 
-        for(let embed of embeds)
-        {
+        for (let embed of embeds) {
             let link = embed.link;
-            if(link.endsWith('.png') || link.endsWith('jpeg'))
+            if (link.endsWith('.png') || link.endsWith('jpeg'))
                 files.push(Path.basename(link));
             else
                 continue;
 
         }
 
-        let attachmentFiles: ListedFiles= await this.adapter.list(newAttachmentFolderPath);
-        for(let file of attachmentFiles.files)
-        {
+        let attachmentFiles: ListedFiles = await this.adapter.list(newAttachmentFolderPath);
+        for (let file of attachmentFiles.files) {
             console.log(file);
             let filePath = file;
             let fileName = Path.basename(filePath);
-            if((files.indexOf(fileName) > -1) && fileName.contains(oldName))
-            {
+            if ((files.indexOf(fileName) > -1) && fileName.contains(oldName)) {
                 fileName = fileName.replace(oldName, newName);
                 let newFilePath = normalizePath(Path.join(newAttachmentFolderPath, fileName));
                 let tfile = this.app.vault.getAbstractFileByPath(filePath);
@@ -270,11 +274,11 @@ class CustomAttachmentLocationSettingTab extends PluginSettingTab {
     }
 
     display(): void {
-        let {containerEl} = this;
+        let { containerEl } = this;
 
         containerEl.empty();
 
-        containerEl.createEl('h2', {text: 'Custom Attachment Location'});
+        containerEl.createEl('h2', { text: 'Custom Attachment Location' });
 
         let el = new Setting(containerEl)
             .setName('Location for New Attachments')
@@ -288,13 +292,13 @@ class CustomAttachmentLocationSettingTab extends PluginSettingTab {
                     console.log('normalized attachmentFolder: ' + value);
 
                     this.plugin.settings.attachmentFolderPath = value;
-                    if(value.startsWith('./'))
+                    if (value.startsWith('./'))
                         this.plugin.useRelativePath = true;
                     else
                         this.plugin.useRelativePath = false;
                     await this.plugin.saveSettings();
                 }));
-        el.controlEl.addEventListener('change',  (()=>{this.display();}));
+        el.controlEl.addEventListener('change', (() => { this.display(); }));
 
 
         new Setting(containerEl)
@@ -333,14 +337,37 @@ class CustomAttachmentLocationSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        if(this.plugin.settings.autoRenameFolder)
+        if (this.plugin.settings.autoRenameFolder) {
             new Setting(containerEl)
-            .setName('Automatically rename attachment files [Experimental]')
-            .setDesc('When renaming md files, automatically rename attachment files if file name contains "${filename}".')
+                .setName('Automatically rename attachment files [Experimental]')
+                .setDesc('When renaming md files, automatically rename attachment files if file name contains "${filename}".')
+                .addToggle(toggle => toggle
+                    .setValue(this.plugin.settings.autoRenameFiles)
+                    .onChange(async (value: boolean) => {
+                        this.plugin.settings.autoRenameFiles = value;
+                        await this.plugin.saveSettings();
+                    }));
+        }
+
+        new Setting(containerEl)
+            .setName('Replace whitespace with hyphen')
+            .setDesc('Automatically replace whitespace in attachment folder with hyphens.')
             .addToggle(toggle => toggle
-                .setValue(this.plugin.settings.autoRenameFiles)
+                .setValue(this.plugin.settings.replaceWhitespace)
                 .onChange(async (value: boolean) => {
-                    this.plugin.settings.autoRenameFiles = value;
+                    this.plugin.settings.replaceWhitespace = value;
+                    this.display();
+                    await this.plugin.saveSettings();
+                }));
+
+        new Setting(containerEl)
+            .setName('All lowercase folder name')
+            .setDesc('Automatically set all characters in folder name to be lowercase.')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.toLowerCase)
+                .onChange(async (value: boolean) => {
+                    this.plugin.settings.toLowerCase = value;
+                    this.display();
                     await this.plugin.saveSettings();
                 }));
     }
