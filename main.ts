@@ -110,6 +110,9 @@ export default class CustomAttachmentLocation extends Plugin {
 
         if (this.settings.replaceWhitespace) {
             path = path.replace(/\s/g, '-');
+
+            // replace 2 or more '-' with a single '-'
+            path = path.replace(/-{2,}/g, '-');
         }
 
         return path;
